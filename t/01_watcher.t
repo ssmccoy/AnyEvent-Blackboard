@@ -106,4 +106,17 @@ subtest "Timeout Canceled" => sub {
     done_testing;
 };
 
+subtest "Clone" => sub {
+    my $blackboard = Blackboard->new();
+
+    $blackboard->put(key => "value");
+
+    my $clone = $blackboard->clone;
+
+    ok $blackboard->get("key") eq $clone->get("key"),
+        "\$blackboard and \$clone shall both have \"key\"";
+
+    done_testing;
+};
+
 done_testing;

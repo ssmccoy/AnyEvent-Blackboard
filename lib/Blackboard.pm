@@ -36,9 +36,10 @@ Blackboard - A simple blackboard database and dispatcher.
 Concurrent applications can often do one or more thing at a time while
 "waiting" for a response from a given service.  Conversely, sometimes
 applications cannot dispatch all requests until certain data elements are
-present, and those may require lookups from other services.  Maintaining these
-data-dependencices in a decentralized fashion can eventually lead to a
-fragmented codebase.  This module attempts to address this design issue by
+present, some of which may require lookups from other services.  Maintaining
+these data-dependencices in a decentralized fashion can eventually lead to
+disparity in the control of a workflow, and possibly missed opportunities for
+optimizing parallelism.  This module attempts to address this design issue by
 allowing the data dependencies and subsequent workflow to be descriptively
 defined in a central place.
 
@@ -74,7 +75,7 @@ its key.
 
 has watchers  => (
     is      => "ro",
-    isa     => "HashRef[CodeRef]",
+    isa     => "HashRef[ArrayRef[CodeRef]]",
     default => sub { {} }
 );
 
@@ -258,6 +259,31 @@ sub hangup {
     my ($self) = @_;
 
     $self->watchers({});
+}
+
+=item clone
+
+Create a clone of this blackboard.  This will not dispatch any events, even if
+the blackboard is prepopulated.
+
+=cut
+
+sub clone {
+    my ($self) = @_;
+
+    my $objects   = { %{ $self->objects } };
+    my $watchers  = { %{ $self->watchers } };
+    my $interests = { %{ $self->interests } };
+
+    for my $watcher (keys %$interests) {
+        $interests->{$watcher} = [ @{ $interests->{$watcher} } ];
+    }
+
+    return __PACKAGE__->new(
+        objects   => $objects,
+        watchers  => $watchers,
+        interests => $interests,
+    );
 }
 
 =back

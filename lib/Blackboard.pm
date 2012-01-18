@@ -61,13 +61,14 @@ The objects present in this blackboard instance.
 
 has objects   => (
     is      => "ro",
-    isa     => "HashRef[Object]",
+    isa     => "HashRef[Any]",
     default => sub { {} }
 );
 
 =item watchers
 
-The a lists of watchers
+A hash reference of callbacks for each watcher, with the key for the watcher as
+its key.
 
 =cut
 
@@ -79,7 +80,8 @@ has watchers  => (
 
 =item interests
 
-A table of interests of a given watcher.
+A hash table with which has each watcher as a key, and array reference to an
+array of interested keys as a value.
 
 =cut
 
@@ -101,7 +103,7 @@ no Mouse;
 
 =item has KEY
 
-Returns true if the blackboard has a key, false otherwise.
+Returns true if the blackboard has a value for the given key, false otherwise.
 
 =cut
 
@@ -112,6 +114,21 @@ sub has {
 }
 
 
+=item watch KEYS, WATCHER
+
+=item watch KEY, WATCHER
+
+Given an array ref of keys (or a single key as a string) and an array ref
+describing a watcher, register the watcher for a dispatch when the given data
+elements are provided.  The watcher may be either an array reference to a tuple
+of [ $object, $method_name ] or a subroutine reference.
+
+In the instance that a value has already been provided for this key, the
+dispatch will happen immediately.
+
+=cut
+
+# Create a callback subref from a tuple.
 sub _callback {
     my ($self, $object, $method) = @_;
 
@@ -132,16 +149,6 @@ sub _dispatch {
         $watcher->(@{ $self->objects }{@$interests});
     }
 }
-
-=item watch KEYS, WATCHER
-
-=item watch KEY, WATCHER
-
-Given an array ref of keys (or a single key as a string) and an array ref
-describing a watcher, register the watcher for a dispatch when the given data
-elements are provided.
-
-=cut
 
 sub watch {
     my ($self, $keys, $watcher) = @_;
@@ -166,7 +173,7 @@ sub watch {
 =item found KEY
 
 Notify any watchers of a key that it has been found, if all of their other
-interests have been found.
+interests have been found.  This method is usually not invoked by the client.
 
 =cut
 
@@ -210,7 +217,7 @@ sub get {
 
 =item clear
 
-Clear the blackboard of all keys.
+Clear the blackboard of all values.
 
 =cut
 
@@ -251,7 +258,6 @@ sub hangup {
     my ($self) = @_;
 
     $self->watchers({});
-    $self->interests({});
 }
 
 =back

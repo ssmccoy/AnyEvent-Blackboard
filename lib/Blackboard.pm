@@ -47,6 +47,7 @@ defined in a central place.
 use strict;
 use warnings FATAL => "all";
 use Mouse;
+use AnyEvent;
 
 =head1 ATTRIBUTES
 
@@ -72,7 +73,7 @@ The a lists of watchers
 
 has watchers  => (
     is      => "ro",
-    isa     => "HashRef[ArrayRef]",
+    isa     => "HashRef[CodeRef]",
     default => sub { {} }
 );
 
@@ -92,10 +93,45 @@ has interests => (
 
 =cut
 
+no Mouse;
 
 =head1 METHODS
 
 =over 4
+
+=item has KEY
+
+Returns true if the blackboard has a key, false otherwise.
+
+=cut
+
+sub has {
+    my ($self, $key) = @_;
+
+    return exists $self->objects->{$key};
+}
+
+
+sub _callback {
+    my ($self, $object, $method) = @_;
+
+    return sub {
+        $object->$method(@_);
+    };
+}
+
+# Dispatch this watcher if it's interests are all available.
+sub _dispatch {
+    my ($self, $watcher) = @_;
+
+    my $interests = $self->interests->{$watcher};
+
+    # Determine if all interests for this watcher have defined keys (some
+    # kind of value, including undef).
+    if (@$interests == grep $self->has($_), @$interests) {
+        $watcher->(@{ $self->objects }{@$interests});
+    }
+}
 
 =item watch KEYS, WATCHER
 
@@ -106,8 +142,13 @@ describing a watcher, register the watcher for a dispatch when the given data
 elements are provided.
 
 =cut
+
 sub watch {
     my ($self, $keys, $watcher) = @_;
+
+    if (ref $watcher eq "ARRAY") {
+        $watcher = $self->_callback(@$watcher);
+    }
 
     unless (ref $keys) {
         $keys = [ $keys ];
@@ -118,6 +159,8 @@ sub watch {
     }
 
     $self->interests->{$watcher} = $keys;
+
+    $self->_dispatch($watcher);
 }
 
 =item found KEY
@@ -131,29 +174,22 @@ sub found {
     my ($self, $key) = @_;
 
     for my $watcher (@{$self->watchers->{$key}}) {
-        my $interests = $self->interests->{$watcher};
-
-        # Determine if all interests for this watcher have defined keys (some
-        # kind of value, including undef).
-        if (@$interests == grep exists $self->objects->{$_}, @$interests) {
-            my ($object, $message) = @$watcher;
-
-            $object->$message( @{ $self->objects }{@$interests} );
-        }
+        $self->_dispatch($watcher);
     }
 }
 
 =item put KEY, VALUE [, KEY, VALUE .. ]
 
 Put the given keys in the blackboard and notify all watchers of those keys that
-the objects have been found.
+the objects have been found, if and only if the value has not already been
+placed in the blackboard.
 
 =cut
 
 sub put {
     my ($self, %found) = @_;
 
-    for my $key (keys %found) {
+    for my $key (grep not($self->has($_)), keys %found) {
         $self->objects->{$key} = $found{$key};
 
         $self->found($key);
@@ -182,6 +218,27 @@ sub clear {
     my ($self) = @_;
 
     $self->objects({});
+}
+
+=item timeout KEY, SECONDS [, DEFAULT ]
+
+Set a timer for N seconds to provide "default" value as a value, defaults to
+`undef`.  This can be used to ensure that blackboard workflows do not reach a
+dead-end if a required value is difficult to obtain.
+
+=cut
+sub timeout {
+    my ($self, $key, $seconds, $default) = @_;
+
+    my $guard = AnyEvent->timer(
+        after => $seconds,
+        cb    => sub {
+            $self->put($key => $default) unless $self->has($key);
+        }
+    );
+
+    # Cancel the timer if we find the object first (otherwise this is a NOOP).
+    $self->watch($key => sub { undef $guard });
 }
 
 =item hangup

@@ -44,7 +44,9 @@ defined in a central place.
 
 =cut
 
-use Moose;
+use strict;
+use warnings FATAL => "all";
+use Mouse;
 
 =head1 ATTRIBUTES
 
@@ -131,10 +133,12 @@ sub found {
     for my $watcher (@{$self->watchers->{$key}}) {
         my $interests = $self->interests->{$watcher};
 
-        if (defined @{$self->objects}{@$interests}) {
+        # Determine if all interests for this watcher have defined keys (some
+        # kind of value, including undef).
+        if (@$interests == grep exists $self->objects->{$_}, @$interests) {
             my ($object, $message) = @$watcher;
 
-            $object->$message( @{ $self->objects->{@$interests} } );
+            $object->$message( @{ $self->objects }{@$interests} );
         }
     }
 }

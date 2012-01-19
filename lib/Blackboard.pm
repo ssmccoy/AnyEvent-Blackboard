@@ -275,9 +275,8 @@ sub clone {
     my $watchers  = { %{ $self->watchers } };
     my $interests = { %{ $self->interests } };
 
-    for my $watcher (keys %$interests) {
-        $interests->{$watcher} = [ @{ $interests->{$watcher} } ];
-    }
+    $interests->{$_} = [ @{ $interests->{$_} } ] for keys %$interests;
+    $watchers->{$_}  = [ @{ $watchers->{$_}  } ] for keys %$watchers;
 
     return __PACKAGE__->new(
         objects   => $objects,
@@ -294,7 +293,7 @@ return __PACKAGE__;
 
 =head1 BUGS
 
-Unlikely.  This module is exceedingly simple.
+None known.
 
 =head1 LICENSE
 

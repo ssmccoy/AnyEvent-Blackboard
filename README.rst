@@ -30,4 +30,6 @@ Please add a unit test or subtest for any additional functionality.
 
 License
 -------------------------------------------------------------------------------
-Artistic License v2.0, see LICENSE.
+Copyright © 2012, Say Media.
+
+Distributed under the Artistic License v2.0, see LICENSE.

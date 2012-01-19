@@ -297,7 +297,7 @@ None known.
 
 =head1 LICENSE
 
-Copyright (C) 2011, Say Media.
+Copyright © 2011, Say Media.
 Distributed under the Artistic License, 2.0.
 
 =cut

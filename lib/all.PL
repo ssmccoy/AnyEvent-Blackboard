@@ -1,3 +1,3 @@
 # include all licenses.
-use blib;
+use lib qw( lib );
 use AnyEvent::Blackboard;

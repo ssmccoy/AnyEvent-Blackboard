@@ -35,12 +35,13 @@ use strict;
 use warnings FATAL => "all";
 use Test::More;
 use EV;
-use Blackboard;
+use AnyEvent::Blackboard;
 
-isa_ok(Blackboard->new(), "Blackboard", "Blackboard constructor");
+isa_ok(AnyEvent::Blackboard->new(), "AnyEvent::Blackboard",
+    "AnyEvent::Blackboard constructor");
 
 subtest "Add Watcher" => sub {
-    my $blackboard = Blackboard->new();
+    my $blackboard = AnyEvent::Blackboard->new();
     my $okayer     = okayer->new(
         foo => "foo",
         bar => "bar",
@@ -57,7 +58,7 @@ subtest "Add Watcher" => sub {
 };
 
 subtest "Timeout" => sub {
-    my $blackboard = Blackboard->new();
+    my $blackboard = AnyEvent::Blackboard->new();
 
     my $condvar = AnyEvent->condvar;
 
@@ -81,7 +82,7 @@ subtest "Timeout" => sub {
 };
 
 subtest "Timeout Canceled" => sub {
-    my $blackboard = Blackboard->new();
+    my $blackboard = AnyEvent::Blackboard->new();
 
     my $condvar = AnyEvent->condvar;
 
@@ -107,7 +108,7 @@ subtest "Timeout Canceled" => sub {
 };
 
 subtest "Clone" => sub {
-    my $blackboard = Blackboard->new();
+    my $blackboard = AnyEvent::Blackboard->new();
 
     $blackboard->put(key => "value");
 

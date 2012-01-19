@@ -1,12 +1,12 @@
-package Blackboard;
+package AnyEvent::Blackboard;
 
 =head1 NAME
 
-Blackboard - A simple blackboard database and dispatcher.
+AnyEvent::Blackboard - A simple blackboard database and dispatcher.
 
 =head1 SYNOPSIS
 
-  my $blackboard = Blackboard->new();
+  my $blackboard = AnyEvent::Blackboard->new();
 
   $blackboard->watch([qw( foo bar )], [ $object, "found_foobar" ]);
   $blackboard->watch(foo => [ $object, "found_foo" ]);
@@ -297,6 +297,7 @@ None known.
 
 =head1 LICENSE
 
-Copyright (C) 2011, Say Media.  Distribution Prohibited.
+Copyright (C) 2011, Say Media.
+Distributed under the Artistic License, 2.0.
 
 =cut

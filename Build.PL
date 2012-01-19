@@ -3,7 +3,7 @@
 use Module::Build;
 
 my $build = Module::Build->new(
-    module_name => "Blackboard",
+    module_name => "AnyEvent::Blackboard",
     dist_version => 0.01,
     requires    => {
         AnyEvent => 0,

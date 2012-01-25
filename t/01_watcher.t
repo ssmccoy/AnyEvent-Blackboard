@@ -86,7 +86,8 @@ subtest "Timeout Canceled" => sub {
 
     my $condvar = AnyEvent->condvar;
 
-    $condvar->begin;
+    $condvar->begin
+;
 
     $blackboard->timeout(foo => 0.01, "default");
 
@@ -108,7 +109,11 @@ subtest "Timeout Canceled" => sub {
 };
 
 subtest "Clone" => sub {
-    my $blackboard = AnyEvent::Blackboard->new();
+    my $blackboard = AnyEvent::Blackboard->new(
+        objects => {
+            key => "value",
+        },
+    );
 
     $blackboard->put(key => "value");
 
@@ -118,6 +123,23 @@ subtest "Clone" => sub {
         "\$blackboard and \$clone shall both have \"key\"";
 
     done_testing;
+};
+
+subtest "Constructor, Hangup" => sub {
+    plan tests => 2;
+
+    my $blackboard = AnyEvent::Blackboard->build(
+        "foo", sub { is(@_, 1, "foo") },
+        "bar", sub { is(@_, 1, "bar") },
+    )->clone;
+
+    $blackboard->put(foo => 1);
+    $blackboard->put(bar => 1);
+
+    $blackboard->clear;
+    $blackboard->hangup;
+
+    $blackboard->put(foo => 1);
 };
 
 done_testing;

@@ -50,44 +50,44 @@ use warnings FATAL => "all";
 use Mouse;
 use AnyEvent;
 
-=head1 ATTRIBUTES
+=for ATTRIBUTES
 
 =over 4
 
-=item objects
+=for _objects
 
-The objects present in this blackboard instance.
+The _objects present in this blackboard instance.
 
 =cut
 
-has objects   => (
-    is      => "ro",
+has _objects   => (
+    is      => "rw",
     isa     => "HashRef[Any]",
     default => sub { {} }
 );
 
-=item watchers
+=for _watchers
 
 A hash reference of callbacks for each watcher, with the key for the watcher as
 its key.
 
 =cut
 
-has watchers  => (
-    is      => "ro",
+has _watchers  => (
+    is      => "rw",
     isa     => "HashRef[ArrayRef[CodeRef]]",
     default => sub { {} }
 );
 
-=item interests
+=for _interests
 
 A hash table with which has each watcher as a key, and array reference to an
 array of interested keys as a value.
 
 =cut
 
-has interests => (
-    is      => "ro",
+has _interests => (
+    is      => "rw",
     isa     => "HashRef[ArrayRef[Str]]",
     default => sub { {} }
 );
@@ -97,6 +97,35 @@ has interests => (
 =cut
 
 no Mouse;
+
+=head1 CONSTRUCTORS
+
+AnyEvent::Blackboard includes a static builder method for constructing
+prototype blackboards using concise syntax.  The is should typically be used
+whenever describing a workflow in detail prior to use (and then cloning the
+blackboard) is the desired usecase.
+
+=over 4
+
+=item build KEYS, WATCHER [, KEYS, WATCHER ] ...
+
+Build and return a blackboard prototype.
+
+=cut
+
+sub build {
+    my ($class, @args) = @_;
+
+    my $blackboard = $class->new();
+
+    while (@args) {
+        my ($keys, $watcher) = splice @args, 0, 2;
+
+        $blackboard->watch($keys, $watcher);
+    }
+
+    return $blackboard;
+}
 
 =head1 METHODS
 
@@ -111,7 +140,7 @@ Returns true if the blackboard has a value for the given key, false otherwise.
 sub has {
     my ($self, $key) = @_;
 
-    return exists $self->objects->{$key};
+    return exists $self->_objects->{$key};
 }
 
 
@@ -138,16 +167,16 @@ sub _callback {
     };
 }
 
-# Dispatch this watcher if it's interests are all available.
+# Dispatch this watcher if it's _interests are all available.
 sub _dispatch {
     my ($self, $watcher) = @_;
 
-    my $interests = $self->interests->{$watcher};
+    my $interests = $self->_interests->{$watcher};
 
-    # Determine if all interests for this watcher have defined keys (some
+    # Determine if all _interests for this watcher have defined keys (some
     # kind of value, including undef).
     if (@$interests == grep $self->has($_), @$interests) {
-        $watcher->(@{ $self->objects }{@$interests});
+        $watcher->(@{ $self->_objects }{@$interests});
     }
 }
 
@@ -163,33 +192,33 @@ sub watch {
     }
 
     for my $key (@$keys) {
-        push @{ $self->watchers->{$key} ||= [] }, $watcher;
+        push @{ $self->_watchers->{$key} ||= [] }, $watcher;
     }
 
-    $self->interests->{$watcher} = $keys;
+    $self->_interests->{$watcher} = $keys;
 
     $self->_dispatch($watcher);
 }
 
 =item found KEY
 
-Notify any watchers of a key that it has been found, if all of their other
-interests have been found.  This method is usually not invoked by the client.
+Notify any _watchers of a key that it has been found, if all of their other
+_interests have been found.  This method is usually not invoked by the client.
 
 =cut
 
 sub found {
     my ($self, $key) = @_;
 
-    for my $watcher (@{$self->watchers->{$key}}) {
+    for my $watcher (@{$self->_watchers->{$key}}) {
         $self->_dispatch($watcher);
     }
 }
 
 =item put KEY, VALUE [, KEY, VALUE .. ]
 
-Put the given keys in the blackboard and notify all watchers of those keys that
-the objects have been found, if and only if the value has not already been
+Put the given keys in the blackboard and notify all _watchers of those keys that
+the _objects have been found, if and only if the value has not already been
 placed in the blackboard.
 
 =cut
@@ -198,7 +227,7 @@ sub put {
     my ($self, %found) = @_;
 
     for my $key (grep not($self->has($_)), keys %found) {
-        $self->objects->{$key} = $found{$key};
+        $self->_objects->{$key} = $found{$key};
 
         $self->found($key);
     }
@@ -213,7 +242,7 @@ Fetch the value of a key.
 sub get {
     my ($self, $key) = @_;
 
-    return $self->objects->{$key};
+    return $self->_objects->{$key};
 }
 
 =item clear
@@ -225,7 +254,7 @@ Clear the blackboard of all values.
 sub clear {
     my ($self) = @_;
 
-    $self->objects({});
+    $self->_objects({});
 }
 
 =item timeout KEY, SECONDS [, DEFAULT ]
@@ -251,14 +280,14 @@ sub timeout {
 
 =item hangup
 
-Clear all watchers.
+Clear all _watchers.
 
 =cut
 
 sub hangup {
     my ($self) = @_;
 
-    $self->watchers({});
+    $self->_watchers({});
 }
 
 =item clone
@@ -271,17 +300,17 @@ the blackboard is prepopulated.
 sub clone {
     my ($self) = @_;
 
-    my $objects   = { %{ $self->objects } };
-    my $watchers  = { %{ $self->watchers } };
-    my $interests = { %{ $self->interests } };
+    my $objects   = { %{ $self->_objects } };
+    my $watchers  = { %{ $self->_watchers } };
+    my $interests = { %{ $self->_interests } };
 
     $interests->{$_} = [ @{ $interests->{$_} } ] for keys %$interests;
     $watchers->{$_}  = [ @{ $watchers->{$_}  } ] for keys %$watchers;
 
     return __PACKAGE__->new(
-        objects   => $objects,
-        watchers  => $watchers,
-        interests => $interests,
+        _objects   => $objects,
+        _watchers  => $watchers,
+        _interests => $interests,
     );
 }
 

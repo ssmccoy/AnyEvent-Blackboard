@@ -237,9 +237,7 @@ sub put {
         push @keys, $key;
     }
 
-    for my $key (@keys) {
-        $self->found($key);
-    }
+    $self->found($_) for @keys;
 }
 
 =item delete KEY [, KEY ...]
@@ -254,6 +252,31 @@ sub remove {
     my ($self, @keys) = @_;
 
     delete @{$self->_objects}{@keys};
+}
+
+=item replace KEY, VALUE [, KEY, VALUE .. ]
+
+Given a list of key value pairs, replace those values on the blackboard.
+Replacements have special semantics, unlike calling `remove` and `put` on a
+single key in succession, calling `replace` will not notify any watchers of the
+given keys on this blackboard.  But watchers waiting for more than one key who
+have not yet been notified, will get the newer value.  Further, replace will
+dispatch the found event if the key is new.
+
+=cut
+
+sub replace {
+    my ($self, %found) = @_;
+
+    my @new_keys;
+
+    for my $key (keys %found) {
+        push @new_keys, $key unless $self->has($key);
+
+        $self->_objects->{$key} = $found{$key};
+    }
+
+    $self->found($_) for @new_keys;
 }
 
 =item get KEY

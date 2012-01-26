@@ -129,8 +129,8 @@ subtest "Constructor, Hangup" => sub {
     plan tests => 2;
 
     my $blackboard = AnyEvent::Blackboard->build(
-        "foo", sub { is(@_, 1, "foo") },
-        "bar", sub { is(@_, 1, "bar") },
+        "foo", sub { is(shift, 1, "foo") },
+        "bar", sub { is(shift, 1, "bar") },
     )->clone;
 
     $blackboard->put(foo => 1);
@@ -140,6 +140,23 @@ subtest "Constructor, Hangup" => sub {
     $blackboard->hangup;
 
     $blackboard->put(foo => 1);
+};
+
+subtest "Remove Test" => sub {
+    plan tests => 3;
+
+    my $i = 0;
+    my $blackboard = AnyEvent::Blackboard->build(
+        "foo", sub { is(shift, $i, "foo") },
+    )->clone;
+
+    $blackboard->put(foo => ++$i);
+
+    $blackboard->remove("foo");
+
+    ok ! $blackboard->has("foo"), "foo should have been removed";
+
+    $blackboard->put(foo => ++$i);
 };
 
 done_testing;

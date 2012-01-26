@@ -202,7 +202,7 @@ sub watch {
 
 =item found KEY
 
-Notify any _watchers of a key that it has been found, if all of their other
+Notify any watchers of a key that it has been found, if all of their other
 _interests have been found.  This method is usually not invoked by the client.
 
 =cut
@@ -217,20 +217,43 @@ sub found {
 
 =item put KEY, VALUE [, KEY, VALUE .. ]
 
-Put the given keys in the blackboard and notify all _watchers of those keys that
-the _objects have been found, if and only if the value has not already been
+Put the given keys in the blackboard and notify all watchers of those keys that
+the objects have been found, if and only if the value has not already been
 placed in the blackboard.
+
+The `found` method is invoked for each key, but only after all unique objects
+have been placed on the blackboard.
 
 =cut
 
 sub put {
     my ($self, %found) = @_;
 
+    my @keys;
+
     for my $key (grep not($self->has($_)), keys %found) {
         $self->_objects->{$key} = $found{$key};
 
+        push @keys, $key;
+    }
+
+    for my $key (@keys) {
         $self->found($key);
     }
+}
+
+=item delete KEY [, KEY ...]
+
+Given a list of keys, remove them from the blackboard.  This method should be
+used with I<caution>, since watchers are not notified that the values are
+removed but they will be re-notified when a new value is provided.
+
+=cut
+
+sub remove {
+    my ($self, @keys) = @_;
+
+    delete @{$self->_objects}{@keys};
 }
 
 =item get KEY
@@ -280,7 +303,7 @@ sub timeout {
 
 =item hangup
 
-Clear all _watchers.
+Clear all watchers.
 
 =cut
 

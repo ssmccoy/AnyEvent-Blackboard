@@ -64,7 +64,7 @@ subtest "Timeout" => sub {
 
     $condvar->begin;
 
-    $blackboard->timeout(foo => 0.01, "default");
+    $blackboard->timeout(0.01, foo => "default");
 
     $blackboard->watch(foo => sub {
             my ($foo) = @_;
@@ -89,7 +89,7 @@ subtest "Timeout Canceled" => sub {
     $condvar->begin
 ;
 
-    $blackboard->timeout(foo => 0.01, "default");
+    $blackboard->timeout(0.01, foo => "default");
 
     $blackboard->watch(foo => sub {
             my ($foo) = @_;

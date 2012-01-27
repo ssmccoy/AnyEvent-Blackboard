@@ -279,16 +279,16 @@ sub replace {
     $self->found($_) for @new_keys;
 }
 
-=item get KEY
+=item get KEY [, KEY .. ]
 
 Fetch the value of a key.
 
 =cut
 
 sub get {
-    my ($self, $key) = @_;
+    my ($self, @keys) = @_;
 
-    return $self->_objects->{$key};
+    return map $self->_objects->{$_}, @keys;
 }
 
 =item clear
@@ -303,15 +303,16 @@ sub clear {
     $self->_objects({});
 }
 
-=item timeout KEY, SECONDS [, DEFAULT ]
+=item timeout SECONDS, [ KEY, [, DEFAULT ] ]
 
 Set a timer for N seconds to provide "default" value as a value, defaults to
 `undef`.  This can be used to ensure that blackboard workflows do not reach a
 dead-end if a required value is difficult to obtain.
 
 =cut
+
 sub timeout {
-    my ($self, $key, $seconds, $default) = @_;
+    my ($self, $seconds, $key, $default) = @_;
 
     my $guard = AnyEvent->timer(
         after => $seconds,
@@ -359,6 +360,10 @@ sub clone {
         _interests => $interests,
     );
 }
+
+=item complete
+
+
 
 =back
 

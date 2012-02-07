@@ -4,7 +4,7 @@ use Module::Build;
 
 my $build = Module::Build->new(
     module_name => "AnyEvent::Blackboard",
-    dist_version => 0.01,
+    version_from => "AnyEvent::Blackboard",
     requires    => {
         AnyEvent => 0,
         Mouse    => 0

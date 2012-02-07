@@ -50,6 +50,8 @@ use warnings FATAL => "all";
 use Mouse;
 use AnyEvent;
 
+our $VERSION = 0.2.1;
+
 =for ATTRIBUTES
 
 =over 4
@@ -221,8 +223,8 @@ Put the given keys in the blackboard and notify all watchers of those keys that
 the objects have been found, if and only if the value has not already been
 placed in the blackboard.
 
-The `found` method is invoked for each key, but only after all unique objects
-have been placed on the blackboard.
+The `found` method is invoked for each key, as the key is added to the
+blackboard.
 
 =cut
 
@@ -234,10 +236,8 @@ sub put {
     for my $key (grep not($self->has($_)), keys %found) {
         $self->_objects->{$key} = $found{$key};
 
-        push @keys, $key;
+        $self->found($key);
     }
-
-    $self->found($_) for @keys;
 }
 
 =item delete KEY [, KEY ...]

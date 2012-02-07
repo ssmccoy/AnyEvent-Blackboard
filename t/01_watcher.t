@@ -41,6 +41,8 @@ isa_ok(AnyEvent::Blackboard->new(), "AnyEvent::Blackboard",
     "AnyEvent::Blackboard constructor");
 
 subtest "Add Watcher" => sub {
+    plan tests => 6;
+
     my $blackboard = AnyEvent::Blackboard->new();
     my $okayer     = okayer->new(
         foo => "foo",
@@ -54,7 +56,10 @@ subtest "Add Watcher" => sub {
     $blackboard->put(foo => "foo");
     $blackboard->put(bar => "bar");
 
-    done_testing;
+    $blackboard->clear;
+
+    # Put a list of keys.
+    $blackboard->put(foo => "foo", bar => "bar");
 };
 
 subtest "Timeout" => sub {

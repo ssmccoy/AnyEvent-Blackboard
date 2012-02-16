@@ -50,7 +50,7 @@ use warnings FATAL => "all";
 use Mouse;
 use AnyEvent;
 
-our $VERSION = 0.2.1;
+our $VERSION = 0.2.2;
 
 =for ATTRIBUTES
 
@@ -281,14 +281,20 @@ sub replace {
 
 =item get KEY [, KEY .. ]
 
-Fetch the value of a key.
+Fetch the value of a key.  If given a list of keys and in list context, return
+the value of each key supplied as a list.
 
 =cut
 
 sub get {
     my ($self, @keys) = @_;
 
-    return map $self->_objects->{$_}, @keys;
+    if (@keys > 1 && wantarray) {
+        return map $self->_objects->{$_}, @keys;
+    }
+    else {
+        return $self->_objects->{$keys[0]};
+    }
 }
 
 =item clear

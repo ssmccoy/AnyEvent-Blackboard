@@ -139,14 +139,14 @@ subtest "Get" => sub {
     is $blackboard->get("foo"), $value, "Value is the same";
 
     done_testing;
-}
+};
 
 subtest "Constructor, Hangup" => sub {
     plan tests => 2;
 
     my $blackboard = AnyEvent::Blackboard->build(
-        foo => sub { is(shift, 1, "foo") },
-        bar => sub { is(shift, 1, "bar") },
+        [qw( foo )] => sub { is(shift, 1, "foo") },
+        [qw( bar )] => sub { is(shift, 1, "bar") },
     )->clone;
 
     $blackboard->put(foo => 1);

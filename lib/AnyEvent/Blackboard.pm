@@ -50,7 +50,7 @@ use warnings FATAL => "all";
 use Mouse;
 use AnyEvent;
 
-our $VERSION = 0.2.2;
+our $VERSION = 0.2.3;
 
 =for ATTRIBUTES
 
@@ -115,16 +115,13 @@ Build and return a blackboard prototype.
 
 =cut
 
+# This is now a legacy thing, on a one month old component...good job.
 sub build {
     my ($class, @args) = @_;
 
     my $blackboard = $class->new();
 
-    while (@args) {
-        my ($keys, $watcher) = splice @args, 0, 2;
-
-        $blackboard->watch($keys, $watcher);
-    }
+    $blackboard->watch(@args);
 
     return $blackboard;
 }
@@ -158,6 +155,8 @@ of [ $object, $method_name ] or a subroutine reference.
 In the instance that a value has already been provided for this key, the
 dispatch will happen immediately.
 
+Returns a reference to self so the builder pattern can be used.
+
 =cut
 
 # Create a callback subref from a tuple.
@@ -167,6 +166,8 @@ sub _callback {
     return sub {
         $object->$method(@_);
     };
+
+    return $self;
 }
 
 # Dispatch this watcher if it's _interests are all available.
@@ -183,23 +184,48 @@ sub _dispatch {
 }
 
 sub watch {
-    my ($self, $keys, $watcher) = @_;
+    my ($self, @args) = @_;
 
-    if (ref $watcher eq "ARRAY") {
-        $watcher = $self->_callback(@$watcher);
+    while (@args) {
+        my ($keys, $watcher) = splice @args, 0, 2;
+
+        if (ref $watcher eq "ARRAY") {
+            $watcher = $self->_callback(@$watcher);
+        }
+
+        unless (ref $keys) {
+            $keys = [ $keys ];
+        }
+
+        for my $key (@$keys) {
+            push @{ $self->_watchers->{$key} ||= [] }, $watcher;
+        }
+
+        $self->_interests->{$watcher} = $keys;
+
+        $self->_dispatch($watcher);
     }
+}
 
-    unless (ref $keys) {
-        $keys = [ $keys ];
-    }
+=item watcher KEY
 
-    for my $key (@$keys) {
-        push @{ $self->_watchers->{$key} ||= [] }, $watcher;
-    }
+=item watcher KEYS
 
-    $self->_interests->{$watcher} = $keys;
+Given a key or an array reference of keys, return all watchers interested in
+the given key.
 
-    $self->_dispatch($watcher);
+=cut
+
+sub watchers {
+    my ($self, $keys) = @_;
+
+    $keys = [ $keys ] unless ref $keys;
+
+    my @results;
+
+    push @results, @{ $self->_watchers->{$_} } for @$keys;
+
+    return @results;
 }
 
 =item found KEY

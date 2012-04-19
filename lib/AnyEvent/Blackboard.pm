@@ -50,7 +50,7 @@ use warnings FATAL => "all";
 use Mouse;
 use AnyEvent;
 
-our $VERSION = 0.2.3;
+our $VERSION = 0.2.5;
 
 =for ATTRIBUTES
 
@@ -109,19 +109,42 @@ blackboard) is the desired usecase.
 
 =over 4
 
-=item build KEYS, WATCHER [, KEYS, WATCHER ] ...
+=item build watchers => [ ... ]
 
-Build and return a blackboard prototype.
+=item build values => [ ... ]
+
+=item build watchers => [ ... ], values => [ ... ]
+
+Build and return a blackboard prototype, it takes a balanced list of keys and
+array references, with the keys specifying the method to call and the array
+reference specifying the argument list.  This is a convenience method which is
+short hand explained by the following example:
+
+    my $blackboard = AnyEvent::Blackboard->new();
+
+    $blackboard->watch(@$watchers);
+    $blackboard->put(@$values);
+
+    # This is equivalent to
+    my $blackboard = AnyEvent::Blackboard->build(
+        watchers => $watchers,
+        values   => $values
+    );
 
 =cut
 
 # This is now a legacy thing, on a one month old component...good job.
 sub build {
-    my ($class, @args) = @_;
+    confess "Build requires a balanced list of arguments" unless @_ % 2;
+
+    my ($class, %args) = @_;
+
+    my ($watchers, $values) = @args{qw( watchers values )};
 
     my $blackboard = $class->new();
 
-    $blackboard->watch(@args);
+    $blackboard->watch(@$watchers) if $watchers;
+    $blackboard->put(@$values)     if $values;
 
     return $blackboard;
 }

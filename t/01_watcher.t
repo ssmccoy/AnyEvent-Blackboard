@@ -113,11 +113,7 @@ subtest "Timeout Canceled" => sub {
 };
 
 subtest "Clone" => sub {
-    my $blackboard = AnyEvent::Blackboard->new(
-        objects => {
-            key => "value",
-        },
-    );
+    my $blackboard = AnyEvent::Blackboard->new();
 
     $blackboard->put(key => "value");
 
@@ -145,8 +141,10 @@ subtest "Constructor, Hangup" => sub {
     plan tests => 2;
 
     my $blackboard = AnyEvent::Blackboard->build(
-        [qw( foo )] => sub { is(shift, 1, "foo") },
-        [qw( bar )] => sub { is(shift, 1, "bar") },
+        watchers => [
+            [qw( foo )] => sub { is(shift, 1, "foo") },
+            [qw( bar )] => sub { is(shift, 1, "bar") },
+        ],
     )->clone;
 
     $blackboard->put(foo => 1);
@@ -163,7 +161,9 @@ subtest "Remove Test" => sub {
 
     my $i = 0;
     my $blackboard = AnyEvent::Blackboard->build(
-        foo => sub { is(shift, $i, "foo") },
+        watchers => [
+            foo => sub { is(shift, $i, "foo") },
+        ],
     )->clone;
 
     $blackboard->put(foo => ++$i);
@@ -181,7 +181,9 @@ subtest "Replace" => sub {
     my $i = 0;
 
     my $blackboard = AnyEvent::Blackboard->build(
-        foo => sub { is(shift, $i, "foo") },
+        watchers => [
+            foo => sub { is(shift, $i, "foo") },
+        ],
     )->clone;
 
     # Make sure that we only dispatch one event.

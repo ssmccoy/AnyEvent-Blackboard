@@ -50,7 +50,7 @@ use warnings FATAL => "all";
 use Mouse;
 use AnyEvent;
 
-our $VERSION = 0.2.5;
+our $VERSION = 0.2.6;
 
 =for ATTRIBUTES
 
@@ -92,6 +92,18 @@ has _interests => (
     is      => "rw",
     isa     => "HashRef[ArrayRef[Str]]",
     default => sub { {} }
+);
+
+=for _hangup -> Bool
+
+The hangup flag.
+
+=cut
+
+has _hangup => (
+    is       => "rw",
+    isa      => "Bool",
+    default  => 0,
 );
 
 =back
@@ -283,9 +295,14 @@ sub put {
     my @keys;
 
     for my $key (grep not($self->has($_)), keys %found) {
-        $self->_objects->{$key} = $found{$key};
+        # Unfortunately, because this API was built this API to accept multiple
+        # values in a single method invocation, it has to check the value of
+        # hangup before every dispatch for hangup to work properly.
+        unless ($self->_hangup) {
+            $self->_objects->{$key} = $found{$key};
 
-        $self->found($key);
+            $self->found($key);
+        }
     }
 }
 
@@ -382,7 +399,9 @@ sub timeout {
 
 =item hangup
 
-Clear all watchers.
+Clear all watchers, and stop accepting new values on the blackboard.
+
+Once hangup has been called, the blackboard workflow is finished.
 
 =cut
 
@@ -390,6 +409,7 @@ sub hangup {
     my ($self) = @_;
 
     $self->_watchers({});
+    $self->_hangup(1);
 }
 
 =item clone

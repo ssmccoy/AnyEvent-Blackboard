@@ -40,6 +40,16 @@ use AnyEvent::Blackboard;
 isa_ok(AnyEvent::Blackboard->new(), "AnyEvent::Blackboard",
     "AnyEvent::Blackboard constructor");
 
+=head1 TESTS
+
+=over 4
+
+=item Add Watcher
+
+Add chains of watchers and validate they are dispatched correctly.
+
+=cut
+
 subtest "Add Watcher" => sub {
     plan tests => 6;
 
@@ -62,7 +72,45 @@ subtest "Add Watcher" => sub {
     $blackboard->put(foo => "foo", bar => "bar");
 };
 
+
+=item Default Timeout
+
+Time out all values by diving into the AnyEvent event loop without putting down
+any events.
+
+=cut
+
+subtest "Default Timeout" => sub {
+    my $blackboard = AnyEvent::Blackboard->new(default_timeout => 0.02);
+
+    my $condvar = AnyEvent->condvar;
+
+    $condvar->begin;
+
+    $blackboard->watch(foo => sub {
+            my ($foo) = @_;
+
+            ok !defined $foo, "foo should be undefined as default";
+
+            $condvar->end;
+        });
+
+    $condvar->recv;
+
+    ok $blackboard->has("foo"), "foo should exist";
+
+    done_testing;
+};
+
+=item Timeout
+
+Timeotu a specific key with a default value.
+
+=cut
+
 subtest "Timeout" => sub {
+    plan tests => 2;
+
     my $blackboard = AnyEvent::Blackboard->new();
 
     my $condvar = AnyEvent->condvar;
@@ -82,9 +130,15 @@ subtest "Timeout" => sub {
     $condvar->recv;
 
     ok $blackboard->has("foo"), "foo should be defined";
-
-    done_testing;
 };
+
+=item Timeout Canceled
+
+Verify that timeouts result in no event when a value was provided, and that
+it's the value that the is available not the undef provided by default by
+timeouts.
+
+=cut
 
 subtest "Timeout Canceled" => sub {
     my $blackboard = AnyEvent::Blackboard->new();
@@ -112,6 +166,12 @@ subtest "Timeout Canceled" => sub {
     done_testing;
 };
 
+=item Clone
+
+Clone the blackboard and make sure it retains its default values.
+
+=cut
+
 subtest "Clone" => sub {
     my $blackboard = AnyEvent::Blackboard->new();
 
@@ -125,6 +185,12 @@ subtest "Clone" => sub {
     done_testing;
 };
 
+=item Get
+
+Fetch a value from the blackboard without an event.
+
+=cut
+
 subtest "Get" => sub {
     my $blackboard = AnyEvent::Blackboard->new();
 
@@ -136,6 +202,12 @@ subtest "Get" => sub {
 
     done_testing;
 };
+
+=item Constructor, Hangup
+
+Test the blackboard factory method and verify that hangup results no no events.
+
+=cut
 
 subtest "Constructor, Hangup" => sub {
     plan tests => 2;
@@ -156,6 +228,12 @@ subtest "Constructor, Hangup" => sub {
     $blackboard->put(foo => 1);
 };
 
+=item Remove Test
+
+Prove that removing and re-adding a value results in a second event.
+
+=cut
+
 subtest "Remove Test" => sub {
     plan tests => 3;
 
@@ -175,8 +253,16 @@ subtest "Remove Test" => sub {
     $blackboard->put(foo => ++$i);
 };
 
+=item Replace
+
+Prove that the replace method results in kicking off an initial event, and taht
+a second call to the replace method doesn't dispatch an event but updates the
+value.
+
+=cut
+
 subtest "Replace" => sub {
-    plan tests => 1;
+    plan tests => 2;
 
     my $i = 0;
 
@@ -188,6 +274,33 @@ subtest "Replace" => sub {
 
     # Make sure that we only dispatch one event.
     $blackboard->replace(foo => ++$i) for 1 .. 2;
+
+    is $blackboard->get("foo"), 2,
+    "get results in changed value after replace";
+};
+
+=item Reentrant put
+
+Verify that even when called reentrantly, event dispatching from put is atomic
+and never creates a duplicate-dispatch condition.
+
+=cut
+
+subtest "Reentrant put" => sub {
+    plan tests => 1;
+
+    my $blackboard = AnyEvent::Blackboard->new;
+
+    $blackboard->watch(foo => sub {
+            my ($blackboard) = @_;
+
+            $blackboard->put(bar => "Cause Failure");
+        }
+    );
+
+    $blackboard->watch([qw( foo bar )] => sub { pass });
+
+    $blackboard->put(foo => $blackboard);
 };
 
 done_testing;

@@ -50,7 +50,8 @@ use warnings FATAL => "all";
 use Mouse;
 use AnyEvent;
 
-our $VERSION = 0.2.6;
+
+our $VERSION = 0.3.1;
 
 =for ATTRIBUTES
 
@@ -103,7 +104,19 @@ The hangup flag.
 has _hangup => (
     is       => "rw",
     isa      => "Bool",
-    default  => 0,
+    default  => 0
+);
+
+=item default_timeout -> Num
+
+Default timeout in (optionally fractional) seconds.
+
+=cut
+
+has default_timeout => (
+    is         => "ro",
+    isa        => "Num",
+    default    => 0,
 );
 
 =back
@@ -205,6 +218,15 @@ sub _callback {
     return $self;
 }
 
+# Verify that a watcher has all interests.
+sub _can_dispatch {
+    my ($self, $watcher) = @_;
+
+    my $interests = $self->_interests->{$watcher};
+
+    return @$interests == grep $self->has($_), @$interests;
+}
+
 # Dispatch this watcher if it's _interests are all available.
 sub _dispatch {
     my ($self, $watcher) = @_;
@@ -213,32 +235,45 @@ sub _dispatch {
 
     # Determine if all _interests for this watcher have defined keys (some
     # kind of value, including undef).
-    if (@$interests == grep $self->has($_), @$interests) {
-        $watcher->(@{ $self->_objects }{@$interests});
+    $watcher->(@{ $self->_objects }{@$interests});
+}
+
+# Add the actual listener.
+sub _watch {
+    my ($self, $keys, $watcher) = @_;
+
+    if (ref $watcher eq "ARRAY") {
+        $watcher = $self->_callback(@$watcher);
     }
+
+    for my $key (@$keys) {
+        push @{ $self->_watchers->{$key} ||= [] }, $watcher;
+    }
+
+    $self->_interests->{$watcher} = $keys;
+
+    $self->_dispatch($watcher) if $self->_can_dispatch($watcher);
 }
 
 sub watch {
     my ($self, @args) = @_;
 
+    my $default_timeout = $self->default_timeout;
+
     while (@args) {
         my ($keys, $watcher) = splice @args, 0, 2;
-
-        if (ref $watcher eq "ARRAY") {
-            $watcher = $self->_callback(@$watcher);
-        }
 
         unless (ref $keys) {
             $keys = [ $keys ];
         }
 
-        for my $key (@$keys) {
-            push @{ $self->_watchers->{$key} ||= [] }, $watcher;
+        $self->_watch($keys, $watcher);
+
+        if ($default_timeout) {
+            for my $key (@$keys) {
+                $self->timeout($default_timeout, $key);
+            }
         }
-
-        $self->_interests->{$watcher} = $keys;
-
-        $self->_dispatch($watcher);
     }
 }
 
@@ -273,7 +308,11 @@ _interests have been found.  This method is usually not invoked by the client.
 sub found {
     my ($self, $key) = @_;
 
-    for my $watcher (@{$self->_watchers->{$key}}) {
+    my $watchers = $self->_watchers->{$key};
+    my @ready_watchers = grep $self->_can_dispatch($_), @$watchers;
+
+    for my $watcher (@ready_watchers)
+    {
         $self->_dispatch($watcher);
     }
 }
@@ -386,15 +425,17 @@ dead-end if a required value is difficult to obtain.
 sub timeout {
     my ($self, $seconds, $key, $default) = @_;
 
-    my $guard = AnyEvent->timer(
-        after => $seconds,
-        cb    => sub {
-            $self->put($key => $default) unless $self->has($key);
-        }
-    );
+    unless ($self->has($key)) {
+        my $guard = AnyEvent->timer(
+            after => $seconds,
+            cb    => sub {
+                $self->put($key => $default) unless $self->has($key);
+            }
+        );
 
-    # Cancel the timer if we find the object first (otherwise this is a NOOP).
-    $self->watch($key => sub { undef $guard });
+        # Cancel the timer if we find the object first (otherwise this is a NOOP).
+        $self->_watch([ $key ], sub { undef $guard });
+    }
 }
 
 =item hangup
@@ -422,6 +463,8 @@ the blackboard is prepopulated.
 sub clone {
     my ($self) = @_;
 
+    my $class = ref $self || __PACKAGE__;
+
     my $objects   = { %{ $self->_objects } };
     my $watchers  = { %{ $self->_watchers } };
     my $interests = { %{ $self->_interests } };
@@ -429,11 +472,24 @@ sub clone {
     $interests->{$_} = [ @{ $interests->{$_} } ] for keys %$interests;
     $watchers->{$_}  = [ @{ $watchers->{$_}  } ] for keys %$watchers;
 
-    return __PACKAGE__->new(
-        _objects   => $objects,
-        _watchers  => $watchers,
-        _interests => $interests,
+    my $default_timeout = $self->default_timeout;
+
+    my $clone = $class->new(
+        _objects        => $objects,
+        _watchers       => $watchers,
+        _interests      => $interests,
+        default_timeout => $default_timeout,
     );
+
+    # Add timeouts for all current watcher interests.  The timeout method
+    # ignores keys that are already defined.
+    if ($default_timeout) {
+        for my $key (keys %$interests) {
+            $clone->timeout($default_timeout, $key);
+        }
+    }
+
+    return $clone;
 }
 
 =item complete

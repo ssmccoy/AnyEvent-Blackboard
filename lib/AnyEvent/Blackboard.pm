@@ -51,7 +51,7 @@ use Mouse;
 use AnyEvent;
 
 
-our $VERSION = 0.3.1;
+our $VERSION = 0.3.2;
 
 =for comment
 

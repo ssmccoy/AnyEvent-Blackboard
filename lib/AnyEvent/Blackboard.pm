@@ -14,7 +14,7 @@ AnyEvent::Blackboard - A simple blackboard database and dispatcher.
   $blackboard->put(foo => "First dispatch");
   # $object->found_foo("First dispatch") is called
   $blackboard->put(bar => "Second dispatch");
-  # $object->found_foobar("Second dispatch") is called
+  # $object->found_foobar("First dispatch", "Second dispatch") is called
 
   $blackboard->clear;
 
@@ -27,7 +27,7 @@ AnyEvent::Blackboard - A simple blackboard database and dispatcher.
   # Order of the following is undefined:
   #
   # $object->found_foo("Future dispatch") is called
-  # $object->found_foobar("Another dispatch") is called
+  # $object->found_foobar("Future Dispatch", "Another dispatch") is called
 
   $blackboard->hangup;
 
@@ -53,11 +53,7 @@ use AnyEvent;
 
 our $VERSION = 0.3.1;
 
-=for ATTRIBUTES
-
-=over 4
-
-=for _objects
+=for comment
 
 The _objects present in this blackboard instance.
 
@@ -69,7 +65,7 @@ has _objects   => (
     default => sub { {} }
 );
 
-=for _watchers
+=for comment
 
 A hash reference of callbacks for each watcher, with the key for the watcher as
 its key.
@@ -82,7 +78,7 @@ has _watchers  => (
     default => sub { {} }
 );
 
-=for _interests
+=for comment
 
 A hash table with which has each watcher as a key, and array reference to an
 array of interested keys as a value.
@@ -95,7 +91,7 @@ has _interests => (
     default => sub { {} }
 );
 
-=for _hangup -> Bool
+=for comment
 
 The hangup flag.
 
@@ -492,15 +488,9 @@ sub clone {
     return $clone;
 }
 
-=item complete
-
-
+return __PACKAGE__;
 
 =back
-
-=cut
-
-return __PACKAGE__;
 
 =head1 BUGS
 

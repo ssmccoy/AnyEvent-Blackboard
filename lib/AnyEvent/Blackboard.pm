@@ -310,6 +310,9 @@ sub found {
     for my $watcher (@ready_watchers)
     {
         $self->_dispatch($watcher);
+
+        # Break out of the loop if hangup was invoked during dispatching.
+        last if $self->_hangup;
     }
 }
 

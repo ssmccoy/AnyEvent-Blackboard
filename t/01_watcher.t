@@ -303,4 +303,25 @@ subtest "Reentrant put" => sub {
     $blackboard->put(foo => $blackboard);
 };
 
+=item Red herring
+
+Verify that when hangup has happened in the middle of a dispatch loop no
+further dispatching occurs.
+
+=cut
+
+subtest "Red herring" => sub {
+    my $blackboard = AnyEvent::Blackboard->new();
+
+    $blackboard->watch(foo => sub { $blackboard->hangup });
+    $blackboard->watch(foo => sub { fail "Expected hangup" });
+
+    $blackboard->put(foo => 1);
+
+    # XXX This should probably move _hangup to a public-like-named method.
+    ok $blackboard->_hangup, "Blackboard was hung up";
+
+    done_testing;
+};
+
 done_testing;

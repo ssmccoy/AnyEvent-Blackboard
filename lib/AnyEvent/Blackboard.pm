@@ -14,7 +14,7 @@ AnyEvent::Blackboard - A simple blackboard database and dispatcher.
   $blackboard->put(foo => "First dispatch");
   # $object->found_foo("First dispatch") is called
   $blackboard->put(bar => "Second dispatch");
-  # $object->found_foobar("Second dispatch") is called
+  # $object->found_foobar("First dispatch", "Second dispatch") is called
 
   $blackboard->clear;
 
@@ -27,7 +27,7 @@ AnyEvent::Blackboard - A simple blackboard database and dispatcher.
   # Order of the following is undefined:
   #
   # $object->found_foo("Future dispatch") is called
-  # $object->found_foobar("Another dispatch") is called
+  # $object->found_foobar("Future Dispatch", "Another dispatch") is called
 
   $blackboard->hangup;
 
@@ -50,13 +50,9 @@ use warnings FATAL => "all";
 use Mouse;
 use AnyEvent;
 
-our $VERSION = 0.2.2;
+our $VERSION = 0.3.3;
 
-=for ATTRIBUTES
-
-=over 4
-
-=for _objects
+=for comment
 
 The _objects present in this blackboard instance.
 
@@ -68,7 +64,7 @@ has _objects   => (
     default => sub { {} }
 );
 
-=for _watchers
+=for comment
 
 A hash reference of callbacks for each watcher, with the key for the watcher as
 its key.
@@ -81,7 +77,7 @@ has _watchers  => (
     default => sub { {} }
 );
 
-=for _interests
+=for comment
 
 A hash table with which has each watcher as a key, and array reference to an
 array of interested keys as a value.
@@ -92,6 +88,30 @@ has _interests => (
     is      => "rw",
     isa     => "HashRef[ArrayRef[Str]]",
     default => sub { {} }
+);
+
+=for comment
+
+The hangup flag.
+
+=cut
+
+has _hangup => (
+    is       => "rw",
+    isa      => "Bool",
+    default  => 0
+);
+
+=item default_timeout -> Num
+
+Default timeout in (optionally fractional) seconds.
+
+=cut
+
+has default_timeout => (
+    is         => "ro",
+    isa        => "Num",
+    default    => 0,
 );
 
 =back
@@ -109,22 +129,42 @@ blackboard) is the desired usecase.
 
 =over 4
 
-=item build KEYS, WATCHER [, KEYS, WATCHER ] ...
+=item build watchers => [ ... ]
 
-Build and return a blackboard prototype.
+=item build values => [ ... ]
+
+=item build watchers => [ ... ], values => [ ... ]
+
+Build and return a blackboard prototype, it takes a balanced list of keys and
+array references, with the keys specifying the method to call and the array
+reference specifying the argument list.  This is a convenience method which is
+short hand explained by the following example:
+
+    my $blackboard = AnyEvent::Blackboard->new();
+
+    $blackboard->watch(@$watchers);
+    $blackboard->put(@$values);
+
+    # This is equivalent to
+    my $blackboard = AnyEvent::Blackboard->build(
+        watchers => $watchers,
+        values   => $values
+    );
 
 =cut
 
+# This is now a legacy thing, on a one month old component...good job.
 sub build {
-    my ($class, @args) = @_;
+    confess "Build requires a balanced list of arguments" unless @_ % 2;
+
+    my ($class, %args) = @_;
+
+    my ($watchers, $values) = @args{qw( watchers values )};
 
     my $blackboard = $class->new();
 
-    while (@args) {
-        my ($keys, $watcher) = splice @args, 0, 2;
-
-        $blackboard->watch($keys, $watcher);
-    }
+    $blackboard->watch(@$watchers) if $watchers;
+    $blackboard->put(@$values)     if $values;
 
     return $blackboard;
 }
@@ -158,6 +198,8 @@ of [ $object, $method_name ] or a subroutine reference.
 In the instance that a value has already been provided for this key, the
 dispatch will happen immediately.
 
+Returns a reference to self so the builder pattern can be used.
+
 =cut
 
 # Create a callback subref from a tuple.
@@ -167,6 +209,17 @@ sub _callback {
     return sub {
         $object->$method(@_);
     };
+
+    return $self;
+}
+
+# Verify that a watcher has all interests.
+sub _can_dispatch {
+    my ($self, $watcher) = @_;
+
+    my $interests = $self->_interests->{$watcher};
+
+    return @$interests == grep $self->has($_), @$interests;
 }
 
 # Dispatch this watcher if it's _interests are all available.
@@ -177,20 +230,15 @@ sub _dispatch {
 
     # Determine if all _interests for this watcher have defined keys (some
     # kind of value, including undef).
-    if (@$interests == grep $self->has($_), @$interests) {
-        $watcher->(@{ $self->_objects }{@$interests});
-    }
+    $watcher->(@{ $self->_objects }{@$interests});
 }
 
-sub watch {
+# Add the actual listener.
+sub _watch {
     my ($self, $keys, $watcher) = @_;
 
     if (ref $watcher eq "ARRAY") {
         $watcher = $self->_callback(@$watcher);
-    }
-
-    unless (ref $keys) {
-        $keys = [ $keys ];
     }
 
     for my $key (@$keys) {
@@ -199,7 +247,50 @@ sub watch {
 
     $self->_interests->{$watcher} = $keys;
 
-    $self->_dispatch($watcher);
+    $self->_dispatch($watcher) if $self->_can_dispatch($watcher);
+}
+
+sub watch {
+    my ($self, @args) = @_;
+
+    my $default_timeout = $self->default_timeout;
+
+    while (@args) {
+        my ($keys, $watcher) = splice @args, 0, 2;
+
+        unless (ref $keys) {
+            $keys = [ $keys ];
+        }
+
+        $self->_watch($keys, $watcher);
+
+        if ($default_timeout) {
+            for my $key (@$keys) {
+                $self->timeout($default_timeout, $key);
+            }
+        }
+    }
+}
+
+=item watcher KEY
+
+=item watcher KEYS
+
+Given a key or an array reference of keys, return all watchers interested in
+the given key.
+
+=cut
+
+sub watchers {
+    my ($self, $keys) = @_;
+
+    $keys = [ $keys ] unless ref $keys;
+
+    my @results;
+
+    push @results, @{ $self->_watchers->{$_} } for @$keys;
+
+    return @results;
 }
 
 =item found KEY
@@ -212,8 +303,15 @@ _interests have been found.  This method is usually not invoked by the client.
 sub found {
     my ($self, $key) = @_;
 
-    for my $watcher (@{$self->_watchers->{$key}}) {
+    my $watchers = $self->_watchers->{$key};
+    my @ready_watchers = grep $self->_can_dispatch($_), @$watchers;
+
+    for my $watcher (@ready_watchers)
+    {
         $self->_dispatch($watcher);
+
+        # Break out of the loop if hangup was invoked during dispatching.
+        last if $self->_hangup;
     }
 }
 
@@ -234,9 +332,14 @@ sub put {
     my @keys;
 
     for my $key (grep not($self->has($_)), keys %found) {
-        $self->_objects->{$key} = $found{$key};
+        # Unfortunately, because this API was built this API to accept multiple
+        # values in a single method invocation, it has to check the value of
+        # hangup before every dispatch for hangup to work properly.
+        unless ($self->_hangup) {
+            $self->_objects->{$key} = $found{$key};
 
-        $self->found($key);
+            $self->found($key);
+        }
     }
 }
 
@@ -320,20 +423,24 @@ dead-end if a required value is difficult to obtain.
 sub timeout {
     my ($self, $seconds, $key, $default) = @_;
 
-    my $guard = AnyEvent->timer(
-        after => $seconds,
-        cb    => sub {
-            $self->put($key => $default) unless $self->has($key);
-        }
-    );
+    unless ($self->has($key)) {
+        my $guard = AnyEvent->timer(
+            after => $seconds,
+            cb    => sub {
+                $self->put($key => $default) unless $self->has($key);
+            }
+        );
 
-    # Cancel the timer if we find the object first (otherwise this is a NOOP).
-    $self->watch($key => sub { undef $guard });
+        # Cancel the timer if we find the object first (otherwise this is a NOOP).
+        $self->_watch([ $key ], sub { undef $guard });
+    }
 }
 
 =item hangup
 
-Clear all watchers.
+Clear all watchers, and stop accepting new values on the blackboard.
+
+Once hangup has been called, the blackboard workflow is finished.
 
 =cut
 
@@ -341,6 +448,7 @@ sub hangup {
     my ($self) = @_;
 
     $self->_watchers({});
+    $self->_hangup(1);
 }
 
 =item clone
@@ -353,6 +461,8 @@ the blackboard is prepopulated.
 sub clone {
     my ($self) = @_;
 
+    my $class = ref $self || __PACKAGE__;
+
     my $objects   = { %{ $self->_objects } };
     my $watchers  = { %{ $self->_watchers } };
     my $interests = { %{ $self->_interests } };
@@ -360,22 +470,29 @@ sub clone {
     $interests->{$_} = [ @{ $interests->{$_} } ] for keys %$interests;
     $watchers->{$_}  = [ @{ $watchers->{$_}  } ] for keys %$watchers;
 
-    return __PACKAGE__->new(
-        _objects   => $objects,
-        _watchers  => $watchers,
-        _interests => $interests,
+    my $default_timeout = $self->default_timeout;
+
+    my $clone = $class->new(
+        _objects        => $objects,
+        _watchers       => $watchers,
+        _interests      => $interests,
+        default_timeout => $default_timeout,
     );
+
+    # Add timeouts for all current watcher interests.  The timeout method
+    # ignores keys that are already defined.
+    if ($default_timeout) {
+        for my $key (keys %$interests) {
+            $clone->timeout($default_timeout, $key);
+        }
+    }
+
+    return $clone;
 }
 
-=item complete
-
-
+return __PACKAGE__;
 
 =back
-
-=cut
-
-return __PACKAGE__;
 
 =head1 BUGS
 

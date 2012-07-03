@@ -50,8 +50,7 @@ use warnings FATAL => "all";
 use Mouse;
 use AnyEvent;
 
-
-our $VERSION = 0.3.2;
+our $VERSION = 0.3.3;
 
 =for comment
 

@@ -255,7 +255,7 @@ subtest "Remove Test" => sub {
 
 =item Replace
 
-Prove that the replace method results in kicking off an initial event, and taht
+Prove that the replace method results in kicking off an initial event, and that
 a second call to the replace method doesn't dispatch an event but updates the
 value.
 

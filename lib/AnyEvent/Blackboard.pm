@@ -52,50 +52,36 @@ use AnyEvent;
 
 our $VERSION = 0.3.3;
 
-=for comment
+=head1 ATTRIBUTES
 
-The _objects present in this blackboard instance.
+=over 4
 
 =cut
 
+# The _objects present in this blackboard instance.
 has _objects   => (
     is      => "rw",
     isa     => "HashRef[Any]",
     default => sub { {} }
 );
 
-=for comment
-
-A hash reference of callbacks for each watcher, with the key for the watcher as
-its key.
-
-=cut
-
+# A hash reference of callbacks for each watcher, with the key for the watcher
+# as its key.
 has _watchers  => (
     is      => "rw",
     isa     => "HashRef[ArrayRef[CodeRef]]",
     default => sub { {} }
 );
 
-=for comment
-
-A hash table with which has each watcher as a key, and array reference to an
-array of interested keys as a value.
-
-=cut
-
+# A hash table with which has each watcher as a key, and array reference to an
+# array of interested keys as a value.
 has _interests => (
     is      => "rw",
     isa     => "HashRef[ArrayRef[Str]]",
     default => sub { {} }
 );
 
-=for comment
-
-The hangup flag.
-
-=cut
-
+# The hangup flag.
 has _hangup => (
     is       => "rw",
     isa      => "Bool",
@@ -168,6 +154,8 @@ sub build {
 
     return $blackboard;
 }
+
+=back
 
 =head1 METHODS
 

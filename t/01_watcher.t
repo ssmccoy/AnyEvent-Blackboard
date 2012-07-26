@@ -287,7 +287,7 @@ and never creates a duplicate-dispatch condition.
 =cut
 
 subtest "Reentrant put" => sub {
-    plan tests => 1;
+    plan tests => 2;
 
     my $blackboard = AnyEvent::Blackboard->new;
 
@@ -295,10 +295,12 @@ subtest "Reentrant put" => sub {
             my ($blackboard) = @_;
 
             $blackboard->put(bar => "Cause Failure");
+
+            pass "Saw event for foo";
         }
     );
 
-    $blackboard->watch([qw( foo bar )] => sub { pass });
+    $blackboard->watch([qw( foo bar )] => sub { pass "Saw event for foo bar" });
 
     $blackboard->put(foo => $blackboard);
 };

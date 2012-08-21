@@ -49,6 +49,7 @@ use strict;
 use warnings FATAL => "all";
 use Mouse;
 use AnyEvent;
+use Scalar::Util ();
 
 our $VERSION = 0.3.3;
 
@@ -329,6 +330,22 @@ sub put {
             $self->found($key);
         }
     }
+}
+
+=item weaken KEY
+
+Weaken the reference to KEY.
+
+When the value placed on the blackboard should *not* have a strong reference
+(for instance, a circular reference to the blackboard), use this method to
+weaken the value reference to the value associated with the key.
+
+=cut
+
+sub weaken {
+    my ($self, $key) = @_;
+
+    Scalar::Util::weaken $self->_objects->{$key};
 }
 
 =item delete KEY [, KEY ...]

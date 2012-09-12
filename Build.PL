@@ -16,6 +16,7 @@ my $build = Module::Build->new(
         # For test....
         "EV"            => 0,
         "BSD::Resource" => 0,
+        "Devel::Leak"   => 0,
     },
 );
 

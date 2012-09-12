@@ -6,6 +6,22 @@ use Test::More;
 use Benchmark qw( :all );
 use AnyEvent::Blackboard;
 
+=head1 TESTS
+
+Collection of benchmark tests.
+
+=over 4
+
+=item Dispatch rate test.
+
+A test which validates the rate of dispatch is greater than 30,000/s.  The goal
+being to ensure that L<AnyEvent::Blackboard> is never particularly slow at
+calculating constraints for dispatching or at cloning - cloning being
+particularly important for most use cases.
+
+=cut
+
+
 my $blackboard = AnyEvent::Blackboard->build(
     watch => [ test => \&pass ]
 );
@@ -21,8 +37,7 @@ sub rate {
     return $n / $elapsed;
 }
 
-
-subtest "Dispatch" => sub {
+subtest "Dispatch rate test." => sub {
     my $benchmark = timeit 100_000, sub {
         $blackboard->clone->put(test => 1);
     };
@@ -31,5 +46,9 @@ subtest "Dispatch" => sub {
 
     ok $rate > 30000, "Rate of $rate is above 30,000/second";
 };
+
+=back
+
+=cut
 
 done_testing;

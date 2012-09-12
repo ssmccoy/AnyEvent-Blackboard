@@ -70,6 +70,30 @@ subtest "Add Watcher" => sub {
     $blackboard->put(foo => "foo", bar => "bar");
 };
 
+=item Watching for published values.
+
+Establish whether or not duplicate dispatches occur when looking for values
+that already are published to the blackboard.
+
+=cut
+
+subtest "Watching for published values." => sub {
+    plan tests => 3;
+
+    my $blackboard = AnyEvent::Blackboard->new();
+    my $okayer     = okayer->new(
+        foo => "foo",
+        bar => "bar",
+    );
+
+    $blackboard->put(foo => "foo");
+    $blackboard->put(bar => "bar");
+
+    $blackboard->watch([qw( foo bar )], [ $okayer, "foobar" ]);
+    $blackboard->watch(foo => [ $okayer, "foo" ]);
+    $blackboard->watch(bar => [ $okayer, "bar" ]);
+};
+
 
 =item Default Timeout
 

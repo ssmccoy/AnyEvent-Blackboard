@@ -348,4 +348,8 @@ subtest "Red herring" => sub {
     done_testing;
 };
 
+=back
+
+=cut
+
 done_testing;

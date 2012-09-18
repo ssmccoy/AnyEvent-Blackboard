@@ -8,7 +8,7 @@ my $build = Module::Build->new(
 
     requires     => {
         "AnyEvent"          => 0,
-        "Async::Blackboard" => 0,
+        "Async::Blackboard" => "0.3.6",
         "Mouse"             => 0,
     },
 

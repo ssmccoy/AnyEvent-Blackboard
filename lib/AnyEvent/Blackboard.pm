@@ -32,7 +32,7 @@ use Mouse;
 
 extends qw( Async::Blackboard );
 
-our $VERSION = 0.4.0;
+our $VERSION = 0.4.1;
 
 =head1 ATTRIBUTES
 

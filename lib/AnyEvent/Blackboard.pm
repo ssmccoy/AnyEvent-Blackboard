@@ -47,9 +47,24 @@ Default timeout in (optionally fractional) seconds.
 =cut
 
 has default_timeout => (
-    is         => "ro",
+    is         => "rw",
     isa        => "Num",
     default    => 0,
+);
+
+=item condvar -> AnyEvent::CondVar
+
+A conditional variable to track dispatches. (optional)
+
+When supplied, each dispatch group will be wrapped in calls to ``begin'' and
+``end'' on condvar instance.
+
+=cut
+
+has condvar => (
+    is         => "ro",
+    isa        => "AnyEvent::CondVar",
+    lazy_build => 1,
 );
 
 =back
@@ -75,16 +90,20 @@ dead-end if a required value is difficult to obtain.
 sub timeout {
     my ($self, $seconds, $key, $default) = @_;
 
+    $key = [ $key ] unless (ref $key eq "ARRAY");
+
     unless ($self->has($key)) {
         my $guard = AnyEvent->timer(
             after => $seconds,
             cb    => sub {
-                $self->put($key => $default) unless $self->has($key);
+                unless ($self->has($key)) {
+                    $self->put($_ => $default) for @$key;
+                }
             }
         );
 
         # Cancel the timer if we find the object first (otherwise this is a NOOP).
-        $self->_watch([ $key ], sub { undef $guard });
+        $self->_watch($key, sub { undef $guard });
     }
 }
 
@@ -101,18 +120,43 @@ sub watch {
 
     confess "Expected balanced as arguments" if @args % 2;
 
-    if ($self->default_timeout) {
-        my $timeout = $self->default_timeout;
-        my @keys    = keys %{ { @args } };
+    my $timeout = $self->default_timeout;
 
-        for my $key (@keys) {
+    if ($timeout) {
+        my $i = 0;
+
+        for my $key (grep $i++ % 2 == 0, @args) {
             $self->timeout($timeout, $key);
         }
     }
 
-    return $self->SUPER::watch(@args);
+    $self->SUPER::watch(@args);
 }
 
+=item found KEY
+
+Wrap calls to ``found'' in condvar transaction counting, if a condvar is
+supplied.  The side-effect is that dispatching is wrapped in conditional
+variable counting.
+
+=cut
+
+sub found {
+    my ($self, @args) = @_;
+
+    if ($self->has_condvar) {
+        my $condvar = $self->condvar;
+
+        $condvar->begin;
+
+        $self->SUPER::found(@args);
+
+        $condvar->end;
+    }
+    else {
+        $self->SUPER::found(@args);
+    }
+}
 
 =item clone
 

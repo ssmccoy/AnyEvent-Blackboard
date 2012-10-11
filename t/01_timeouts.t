@@ -135,6 +135,26 @@ subtest "Timeout Canceled" => sub {
     done_testing;
 };
 
+=item Default timeout doesn't stringify arrayrefs.
+
+Ensure ``default_timeout'' doesn't create a bug in ``watch'' where it adds a
+watcher to an array refernece.
+
+=cut
+
+subtest "Default timeout doesn't stringify arrayrefs." => sub {
+    my $blackboard = AnyEvent::Blackboard->new(
+        default_timeout => 1
+    );
+
+    my $keys = [ sort qw( foo bar ) ];
+
+    $blackboard->watch($keys, sub { fail });
+
+    is_deeply [ sort $blackboard->watched ], $keys,
+    "watched list contains the expected results";
+};
+
 =item Clone
 
 Clone the blackboard and make sure it retains its default values.

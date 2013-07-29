@@ -28,9 +28,8 @@ use strict;
 use warnings FATAL => "all";
 
 use AnyEvent;
-use Mouse;
-
-extends qw( Async::Blackboard );
+use parent qw( Async::Blackboard );
+use Carp qw( croak confess );
 
 our $VERSION = 0.4.4;
 
@@ -46,12 +45,6 @@ Default timeout in (optionally fractional) seconds.
 
 =cut
 
-has default_timeout => (
-    is         => "rw",
-    isa        => "Num",
-    default    => 0,
-);
-
 =item condvar -> AnyEvent::CondVar
 
 A conditional variable to track dispatches. (optional)
@@ -61,17 +54,28 @@ When supplied, each dispatch group will be wrapped in calls to ``begin'' and
 
 =cut
 
-has condvar => (
-    is         => "ro",
-    isa        => "AnyEvent::CondVar",
-    lazy_build => 1,
-);
+sub new {
+    my ($class, @arguments) = @_;
+
+    if (@arguments % 2) {
+        croak "AnyEvent::Blackboard->new() requires a balanced list";
+    }
+
+    my %options = @arguments;
+
+    my $self = $class->SUPER::new();
+
+    @$self{qw( -default_timeout -condvar )} =
+        @options{qw( default_timeout condvar )};
+
+    $self->{-condvar} //= AnyEvent->condvar;
+
+    return $self;
+}
 
 =back
 
 =cut
-
-no Mouse;
 
 =back
 
@@ -120,7 +124,7 @@ sub watch {
 
     confess "Expected balanced as arguments" if @args % 2;
 
-    my $timeout = $self->default_timeout;
+    my $timeout = $self->{-default_timeout};
 
     if ($timeout) {
         my $i = 0;
@@ -170,13 +174,13 @@ sub clone {
 
     my $class = ref $self || __PACKAGE__;
 
-    my $default_timeout = $self->default_timeout;
+    my $default_timeout = $self->{-default_timeout};
 
     my $clone = $self->SUPER::clone;
 
     # This is a little on the side of evil...we're not supposed to know where
     # this value is stored.
-    $clone->{default_timeout} = $default_timeout;
+    $clone->{-default_timeout} = $default_timeout;
 
     # Add timeouts for all current watcher interests.  The timeout method
     # ignores keys that are already defined.

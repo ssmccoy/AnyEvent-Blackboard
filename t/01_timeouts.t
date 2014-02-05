@@ -7,7 +7,8 @@ use EV;
 use AnyEvent::Blackboard;
 
 no warnings "redefine";
-package okayer {
+{
+    package okayer;
     use Test::More;
 
     sub new {

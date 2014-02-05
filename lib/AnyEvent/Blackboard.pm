@@ -31,7 +31,7 @@ use AnyEvent;
 use parent qw( Async::Blackboard );
 use Carp qw( croak confess );
 
-our $VERSION = 0.4.8;
+our $VERSION = "0.4.10";
 
 =head1 ATTRIBUTES
 
